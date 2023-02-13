@@ -1,14 +1,18 @@
+// ignore_for_file: avoid_print, library_private_types_in_public_api, prefer_const_constructors
 import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:translatehelper/api/wordapi.dart';
+import 'package:translatehelper/entities/word.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(SqliteApp());
+  runApp(const SqliteApp());
 }
 
 class SqliteApp extends StatefulWidget {
@@ -27,64 +31,66 @@ class _SqliteAppState extends State<SqliteApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: TextField(
-            controller: textController,
+          title: const Text(
+            'Word Translator',
+            textAlign: TextAlign.center,
           ),
         ),
-        body: Center(
-          child: FutureBuilder<List<Grocery>>(
-              future: DatabaseHelper.instance.getGroceries(),
-              builder: (BuildContext context, AsyncSnapshot<List<Grocery>> snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: Text('Loading...'));
-                }
-                return snapshot.data!.isEmpty
-                    ? Center(child: Text('No Groceries in List.'))
-                    : ListView(
-                        children: snapshot.data!.map((grocery) {
-                          return Center(
-                            child: Card(
-                              color: selectedId == grocery.id ? Colors.white70 : Colors.white,
-                              child: ListTile(
-                                title: Text(grocery.name),
-                                onTap: () {
-                                  setState(() {
-                                    if (selectedId == null) {
-                                      textController.text = grocery.name;
-                                      selectedId = grocery.id;
-                                    } else {
-                                      textController.text = '';
-                                      selectedId = null;
-                                    }
-                                  });
-                                },
-                                onLongPress: () {
-                                  setState(() {
-                                    DatabaseHelper.instance.remove(grocery.id!);
-                                  });
-                                },
+        body: Column(
+          children: <Widget>[
+            SizedBox(
+              height: 50,
+              child: Center(
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  child: TypeAheadField<Word?>(
+                    suggestionsCallback: WordApi.getWordSuggestions,
+                    itemBuilder: (context, Word? suggestion) {
+                      final word = suggestion!;
+
+                      return ListTile(
+                        title: Text(word.name),
+                      );
+                    },
+                    noItemsFoundBuilder: (context) => SizedBox(
+                      height: 50,
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            flex: 8,
+                            child: Text(
+                              'sözcük bulunamadı',
+                              textAlign: TextAlign.left,
+                              style: TextStyle(
+                                fontSize: 16,
                               ),
                             ),
-                          );
-                        }).toList(),
-                      );
-              }),
-        ),
-        floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.save),
-          onPressed: () async {
-            selectedId != null
-                ? await DatabaseHelper.instance.update(
-                    Grocery(id: selectedId, name: textController.text),
-                  )
-                : await DatabaseHelper.instance.add(
-                    Grocery(name: textController.text),
-                  );
-            setState(() {
-              textController.clear();
-              selectedId = null;
-            });
-          },
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.add_box_outlined,
+                              ),
+                              onPressed: () => print('sdfasdf'),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    onSuggestionSelected: (Word? suggestion) {
+                      final word = suggestion!;
+                    },
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Container(
+                color: Colors.blue,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -97,7 +103,7 @@ class Grocery {
 
   Grocery({this.id, required this.name});
 
-  factory Grocery.fromMap(Map<String, dynamic> json) => new Grocery(
+  factory Grocery.fromMap(Map<String, dynamic> json) => Grocery(
         id: json['id'],
         name: json['name'],
       );
